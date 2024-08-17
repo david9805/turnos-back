@@ -61,6 +61,7 @@ export class AppService {
       let timeIntervals: any;
 
       let horaHoy = `${hora}:${minutos}`;
+      console.log(horaHoy);
       const { hour: hourWeb, minute: minuteWeb } = this.getHoursAndMinutes(horaHoy);
       const { hour: hourEvent, minute: minuteEvent } = this.getHoursAndMinutes(this.evento.horaInicial);
 
