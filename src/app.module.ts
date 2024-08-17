@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TurnosModule } from './turnos/turnos.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventosEntity } from './entities/eventos.entity';
@@ -13,7 +12,6 @@ import { UserEntity } from './entities/user.entity';
 
 @Module({
   imports: [
-    TurnosModule,
     ConfigModule.forRoot({
       isGlobal:true
     }),
@@ -38,6 +36,7 @@ import { UserEntity } from './entities/user.entity';
                   
       }
     ),
+    TypeOrmModule.forFeature([EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity]),
   
   ],
   controllers: [AppController],
