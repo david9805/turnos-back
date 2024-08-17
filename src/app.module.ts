@@ -20,10 +20,10 @@ import { UserEntity } from './entities/user.entity';
         imports:[ConfigModule],
         useFactory: async (configService:ConfigService)=>({
           type:'mssql',
-          host: configService.get<string>('DB_HOST'),
-          username:configService.get<string>('DB_USERNAME'),
-          password:configService.get<string>('DB_PASSWORD'),
-          database:configService.get<string>('DB_DATABASE'),
+          host: configService.get<string>('DB_HOST2'),
+          username:configService.get<string>('DB_USERNAME2'),
+          password:configService.get<string>('DB_PASSWORD2'),
+          database:configService.get<string>('DB_DATABASE2'),
           entities:[EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity],
           options:{
             encrypt:true,
