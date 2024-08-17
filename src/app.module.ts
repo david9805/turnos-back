@@ -21,9 +21,9 @@ import { UserEntity } from './entities/user.entity';
         useFactory: async (configService:ConfigService)=>({
           type:'mssql',
           host: 'www.comprasinteligentes.co',
-          username:configService.get<string>('DB_USERNAME2'),
-          password:configService.get<string>('DB_PASSWORD2'),
-          database:configService.get<string>('DB_DATABASE2'),
+          username:'sa',
+          password:'mf1feylF',
+          database:'CRMHAYUELOS',
           entities:[EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity],
           options:{
             encrypt:true,
