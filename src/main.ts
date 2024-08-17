@@ -8,6 +8,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+  console.log(process.env.DB_HOST,process.env.DB_USERNAME,process.env.DB_PASSWORD);
   await app.listen(3000);
 }
 bootstrap();
