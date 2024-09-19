@@ -63,6 +63,15 @@ export class AppController {
         return this.appService.postCliente(body);
     }
 
+    @Put('/cliente/:idCliente')
+    putCliente(
+        @Body() body:any,
+        @Param('idCliente') idCliente:number
+    )
+    {           
+        return this.appService.putCliente(idCliente,body);
+    }
+
     @Get('/tipoDocumento')
     getTipoDocumento(){
         return this.appService.getTipoDocumento();
@@ -88,5 +97,14 @@ export class AppController {
         @Param('idAsistente') idAsistente:number
     ){
         return this.appService.asist(idAsistente,body);
+    }
+
+    @Get('/sendNotification')
+    sendNotification(
+        @Query('idCliente') idCliente:number,
+        @Query('fecha') fecha:Date,
+    )
+    {        
+        return this.appService.sendNotification(idCliente,fecha);
     }
 }

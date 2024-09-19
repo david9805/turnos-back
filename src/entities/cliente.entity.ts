@@ -36,6 +36,9 @@ export class ClienteEntity{
     @Column({name:'FECHACREACION',type:'datetime',nullable:true})
     fechaCreacion:Date;
 
+    @Column({name:'FECHANACIMIENTO',type:'datetime',nullable:true})
+    fechaNacimiento:Date;
+
     @Column({name:'DIRECCIONRESIDENCIA',type:'varchar',length:100,nullable:true})
     direccionResidencia:string;
 

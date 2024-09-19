@@ -36,6 +36,9 @@ export class AsistentesEntity{
     @Column({name:'FECHAMODIFICA',type:'datetime',nullable:true})
     fechaModifica:Date;
 
+    @Column({name:'ANIONACIMIENTO',type:'int',nullable:true})
+    anioNacimiento:number;
+
     @ManyToOne(() => ClienteEntity)
     @JoinColumn({ name: 'IDCLIENTE' })
     cliente: ClienteEntity;

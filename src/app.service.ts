@@ -100,23 +100,25 @@ export class AppService {
       let [endHour, endMinute] = endTime.split(':').map(Number);
       const asistentes = await this.dataSource.query(
         `
-SELECT HORAASISTENCIA, COUNT(HORAASISTENCIA) AS PARTICIPANTES
-FROM ASISTENTESEVENTOS
-WHERE DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @0
-GROUP BY HORAASISTENCIA
-`,
+        SELECT HORAASISTENCIA, COUNT(HORAASISTENCIA) AS PARTICIPANTES
+        FROM ASISTENTESEVENTOS
+        WHERE DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @0
+        GROUP BY HORAASISTENCIA
+        `,
         [fecha]
       );
       while (startHour < endHour || (startHour === endHour && startMinute < endMinute)) {
         const turno = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
         const asistente = asistentes.find(asistente => asistente.HORAASISTENCIA === turno);
-        const numeroAsistente = asistente ? asistente.PARTICIPANTES : 0
-        this.arrayTurnos.push(
-          {
-            turno: turno,
-            capacidad: capacidad - numeroAsistente,
-            asistentes: numeroAsistente
-          });
+        const numeroAsistente = asistente ? asistente.PARTICIPANTES : 0;
+        if (capacidad !== numeroAsistente){
+          this.arrayTurnos.push(
+            {
+              turno: turno,
+              capacidad: capacidad - numeroAsistente,
+              asistentes: numeroAsistente
+            });
+        }                
         startMinute += interval;
         if (startMinute >= 60) {
           startHour += Math.floor(startMinute / 60);
@@ -194,11 +196,12 @@ GROUP BY HORAASISTENCIA
 
   async postAsistentes(body: any) {
     try {
+      console.log(body);
       if (!body.nombreAsistente) {
         this.catchError("Debe digitar el nombre del asistente", "Debe digitar el nombre  del asistente")
       }
-      if (!body.apellidoAsistente) {
-        this.catchError("Debe digitar el apellido del asistente", "Debe digitar el apellido del asistente")
+      if (!body.anioNacimiento) {
+        this.catchError("Debe digitar el año de nacimiento", "Debe digitar el año de nacimiento")
       }
 
       if (!body.idCliente) {
@@ -216,21 +219,22 @@ GROUP BY HORAASISTENCIA
       const horaHoy = `${hora}:${minutos}`;
       const consulta = await this.dataSource.query(
         `SELECT COUNT(DISTINCT FECHAASISTENCIA) AS PARTICIPACIONES FROM ASISTENTESEVENTOS
-WHERE IDCLIENTE=@0
-AND (DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) <> @1 OR HORAASISTENCIA <> @2)
-`
-        , [body.idCliente, fechaHoy, horaHoy]
+          WHERE IDCLIENTE=@0
+          AND (DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @1)
+          AND HORAASISTENCIA <> @2
+          `
+        , [body.idCliente, fechaHoy,horaHoy]
       )
       const participaciones = consulta[0].PARTICIPACIONES;
-      if (this.evento.maximoPremios <= participaciones) {
-        this.catchError("El cliente ya excedio el maximo de participaciones para este evento", "El cliente ya excedio el maximo de participaciones para este evento");
+      if (1 <= participaciones) {
+        this.catchError("El cliente ya excedio el maximo de participaciones para el dia de seleccionado", "El cliente ya excedio el maximo de participaciones para el dia de seleccionado");
       }
       const consultaParticipantes = await this.dataSource.query(
         `SELECT COUNT( IDASISTENTESEVENTOS) AS PARTICIPANTES FROM ASISTENTESEVENTOS
-WHERE IDCLIENTE=@0
-AND DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @1
-AND HORAASISTENCIA = @2
-`
+          WHERE IDCLIENTE=@0
+          AND DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @1
+          AND HORAASISTENCIA = @2
+          `
         , [body.idCliente, fechaHoy, horaHoy]
       )
       const participantes = consultaParticipantes[0].PARTICIPANTES;
@@ -241,9 +245,9 @@ AND HORAASISTENCIA = @2
 
       const participantesTurnos = await this.dataSource.query(
         `SELECT COUNT( IDASISTENTESEVENTOS) AS PARTICIPANTES FROM ASISTENTESEVENTOS
-WHERE DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @0
-AND HORAASISTENCIA = @1
-`
+          WHERE DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA) = @0
+          AND HORAASISTENCIA = @1
+          `
         , [fechaHoy, horaHoy]
       )
       const participantesTurno = participantesTurnos[0].PARTICIPANTES;
@@ -254,7 +258,7 @@ AND HORAASISTENCIA = @1
       const result = await this.asistenteRepository.save(
         {
           nombreAsistente: body.nombreAsistente,
-          apellidoAsistente: body.apellidoAsistente,
+          anioNacimiento: body.anioNacimiento,
           idCliente: body.idCliente,
           fechaAsistencia: fecha,
           horaAsistencia: horaHoy,
@@ -275,8 +279,8 @@ AND HORAASISTENCIA = @1
       if (!body.nombreAsistente) {
         this.catchError("Debe digitar el nombre del asistente", "Debe digitar el nombre  del asistente")
       }
-      if (!body.apellidoAsistente) {
-        this.catchError("Debe digitar el apellido del asistente", "Debe digitar el apellido del asistente")
+      if (!body.anioNacimiento) {
+        this.catchError("Debe digitar el año de nacimiento", "Debe digitar el año de nacimiento")
       }
 
       if (!body.idCliente) {
@@ -325,7 +329,7 @@ AND HORAASISTENCIA = @1
         },
         {
           nombreAsistente: body.nombreAsistente,
-          apellidoAsistente: body.apellidoAsistente,
+          anioNacimiento: body.anioNacimiento,
           fechaAsistencia: fecha,
           horaAsistencia: horaHoy,
         }
@@ -379,7 +383,6 @@ AND HORAASISTENCIA = @1
 
   async postCliente(data: any) {
     try {
-
       if (!data.nombre1) {
         this.catchError("Debe digitar un nombre", "Debe digitar un nombre")
       }
@@ -396,15 +399,17 @@ AND HORAASISTENCIA = @1
         this.catchError("Debe digitar el documento", "Debe digitar el documento")
       }
 
-      if (!data.direccionResidencia) {
-        this.catchError("Debe digitar la dirección", "Debe digitar la dirección")
-      }
+      // if (!data.direccionResidencia) {
+      //   this.catchError("Debe digitar la dirección", "Debe digitar la dirección")
+      // }
 
       if (!data.celular) {
         this.catchError("Debe digitar el celular", "Debe digitar el celular")
       }
 
-
+      if (!data.fechaNacimiento) {
+        this.catchError("Debe digitar la fecha de nacimiento", "Debe digitar la fecha de nacimiento")
+      }
 
       const consulta = await this.clienteRepository.count({
         where: {
@@ -417,9 +422,9 @@ AND HORAASISTENCIA = @1
       }
       const result = await this.clienteRepository.save({
         nombre1: data.nombre1,
-        nombre2: data.nombre2,
+        // nombre2: data.nombre2,
         apellido1: data.apellido1,
-        apellido2: data.apellido2,
+        // apellido2: data.apellido2,
         email: data.email,
         documento: data.documento,
         direccionResidencia: data.direccionResidencia,
@@ -427,8 +432,44 @@ AND HORAASISTENCIA = @1
         usuarioCrea: 'WEB',
         idTipoDocumento: data.idTipoDocumento,
         celular: data.celular,
-        habeasData: 'SI'
+        habeasData: 'SI',
+        fechaNacimiento:data.fechaNacimiento
       });
+
+      return {
+        element: result,
+        'grant-type': 'client'
+      };
+    }
+    catch (error) {
+      this.catchError(error);
+    }
+  }
+
+  async putCliente(id:number,data: any) {
+    try {
+      if (!data.email) {
+        this.catchError("Debe digitar un correo", "Debe digitar un correo")
+      }
+
+      // if (!data.direccionResidencia) {
+      //   this.catchError("Debe digitar la dirección", "Debe digitar la dirección")
+      // }
+
+      if (!data.celular) {
+        this.catchError("Debe digitar el celular", "Debe digitar el celular")
+      }
+
+
+      const result = await this.clienteRepository.update(
+        {
+          idCliente:id
+        },
+        {
+          email:data.email,
+          celular:data.celular
+        }
+      );
 
       return {
         element: result,
@@ -498,6 +539,33 @@ AND HORAASISTENCIA = @1
       }
     }
     catch (error) {
+      this.catchError(error);
+    }
+  }
+  async sendNotification(id:number,fechaQuery: Date){
+    try{
+      console.log(id,fechaQuery);
+      const fecha = new Date(fechaQuery);
+      const anio = fecha.getFullYear();
+      const mes = fecha.getMonth() + 1;
+      const dia = fecha.getDate();
+      const fechaHoy = anio * 10000 + mes * 100 + dia;
+      const hora = fecha.getHours();
+      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const horaHoy = `${hora}:${minutos}`;
+      const consulta = await this.dataSource.query(
+        `SELECT B.DOCUMENTO,A.FECHAASISTENCIA,A.HORAASISTENCIA,COUNT (*) AS TOTAL FROM ASISTENTESEVENTOS AS A INNER JOIN CLIENTE AS B ON A.IDCLIENTE = B.IDCLIENTE
+        WHERE B.IDCLIENTE = @0
+        AND DATEPART(YYYY,A.FECHAASISTENCIA)*10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,A.FECHAASISTENCIA) =@1
+        AND HORAASISTENCIA = @2
+        GROUP BY B.DOCUMENTO,A.FECHAASISTENCIA,A.HORAASISTENCIA
+        `
+                , [id, fechaHoy,horaHoy]
+      );      
+      return consulta;
+
+    }
+    catch(error){
       this.catchError(error);
     }
   }

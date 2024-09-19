@@ -9,6 +9,7 @@ import { AsistentesEntity } from './entities/asistenteEventos.entity';
 import { TipoReferenciaEntity } from './entities/tipoReferencia.entity';
 import { ReferenciaEntity } from './entities/referencia.entity';
 import { UserEntity } from './entities/user.entity';
+import { MailService } from './mail/mail.service';
 
 @Module({
   imports: [
@@ -40,6 +41,6 @@ import { UserEntity } from './entities/user.entity';
   
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, MailService],
 })
 export class AppModule {}
