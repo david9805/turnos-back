@@ -137,7 +137,7 @@ export class AppService {
 
 
   async getAsistentes(fechaQuery: Date) {
-    try {
+    try {      
       const fecha = new Date(fechaQuery);
       const anio = fecha.getFullYear();
       const mes = fecha.getMonth() + 1;
@@ -584,7 +584,7 @@ AND HORAASISTENCIA = @1
             <li>Hora: ${primerRegistro.HORAASISTENCIA}</li>
             <li>Número de Niños Registrados: ${primerRegistro.TOTAL}</li>
           </ul>
-          <p>Recuerda llegar 10 minutos antes de tu turno, de lo contrario su turno será reasignado</p>
+          <p>Recuerda llegar 10 minutos antes de tu turno, de lo contrario tu turno será reasignado</p>
           <a href="https://www.hayueloscc.com/politica-de-tratamiento-de-datos/">https://www.hayueloscc.com/politica-de-tratamiento-de-datos/</a>
         `;
 
