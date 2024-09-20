@@ -7,6 +7,8 @@ import { AsistentesEntity } from './entities/asistenteEventos.entity';
 import { ReferenciaEntity } from './entities/referencia.entity';
 import { TipoReferenciaEntity } from './entities/tipoReferencia.entity';
 import { UserEntity } from './entities/user.entity';
+import { MailService } from './mail/mail.service';
+import { format } from 'date-fns/format';
 
 @Injectable()
 export class AppService {
@@ -22,7 +24,8 @@ export class AppService {
     private readonly tipoReferenciaRepository: Repository<TipoReferenciaEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    private emailService:MailService
   ) {
 
   }
@@ -544,25 +547,50 @@ AND HORAASISTENCIA = @1
   }
   async sendNotification(id:number,fechaQuery: Date){
     try{
-      console.log(id,fechaQuery);
+      console.log(id, fechaQuery);
       const fecha = new Date(fechaQuery);
       const anio = fecha.getFullYear();
       const mes = fecha.getMonth() + 1;
       const dia = fecha.getDate();
       const fechaHoy = anio * 10000 + mes * 100 + dia;
       const hora = fecha.getHours();
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().padStart(2, '0'); // Asegura que tenga dos dígitos
       const horaHoy = `${hora}:${minutos}`;
+
       const consulta = await this.dataSource.query(
-        `SELECT B.DOCUMENTO,A.FECHAASISTENCIA,A.HORAASISTENCIA,COUNT (*) AS TOTAL FROM ASISTENTESEVENTOS AS A INNER JOIN CLIENTE AS B ON A.IDCLIENTE = B.IDCLIENTE
+        `SELECT B.DOCUMENTO, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA, COUNT(*) AS TOTAL 
+        FROM ASISTENTESEVENTOS AS A 
+        INNER JOIN CLIENTE AS B ON A.IDCLIENTE = B.IDCLIENTE
         WHERE B.IDCLIENTE = @0
-        AND DATEPART(YYYY,A.FECHAASISTENCIA)*10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,A.FECHAASISTENCIA) =@1
-        AND HORAASISTENCIA = @2
-        GROUP BY B.DOCUMENTO,A.FECHAASISTENCIA,A.HORAASISTENCIA
-        `
-                , [id, fechaHoy,horaHoy]
-      );      
-      return consulta;
+        AND DATEPART(YYYY, A.FECHAASISTENCIA) * 10000 + DATEPART(MM, A.FECHAASISTENCIA) * 100 + DATEPART(DD, A.FECHAASISTENCIA) = @1
+        AND A.HORAASISTENCIA = @2
+        GROUP BY B.DOCUMENTO, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA`,
+        [id, fechaHoy, horaHoy]
+      );
+
+      // Verifica si hay resultados
+      if (consulta.length > 0) {
+        const primerRegistro = consulta[0]; // Solo tomamos el primer registro
+        console.log(primerRegistro);
+
+        const fechaData = new Date(primerRegistro.FECHAASISTENCIA); // La fecha que deseas formatear
+        const fechaFormateada = format(fechaData, 'dd/MM/yyyy');
+        
+        const html = `
+          <p>Gracias por registrar tu turno en nuestra estación.</p>
+          <ul>
+            <li>Documento: ${primerRegistro.DOCUMENTO}</li>
+            <li>Fecha del Turno: ${fechaFormateada}</li>
+            <li>Hora: ${primerRegistro.HORAASISTENCIA}</li>
+            <li>Número de Niños Registrados: ${primerRegistro.TOTAL}</li>
+          </ul>
+          <p>Recuerda llegar 10 minutos antes de tu turno, de lo contrario su turno será reasignado</p>
+          <a href="https://www.hayueloscc.com/politica-de-tratamiento-de-datos/">https://www.hayueloscc.com/politica-de-tratamiento-de-datos/</a>
+        `;
+
+        this.emailService.sendMail(primerRegistro.EMAIL, "Notificación turno", "Prueba", html);
+        return primerRegistro; // Devuelve solo el primer registro
+      }
 
     }
     catch(error){

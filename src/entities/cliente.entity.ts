@@ -18,7 +18,7 @@ export class ClienteEntity{
     @Column({name:'APELLIDO2',type:'varchar',length:20,nullable:true})
     apellido2:string;
 
-    @Column({name:'DOCUMENTO',type:'varchar',length:20,nullable:true})
+    @Column({name:'DOCUMENTO',type:'varchar',length:15,nullable:true})
     documento:string;
 
     @Column({name:'IDTIPODOCUMENTO',type:'int',nullable:true})
