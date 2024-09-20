@@ -19,7 +19,7 @@ export class MailService {
   
     async sendMail(to: string, subject: string, text: string, html?: string) {
       const mailOptions = {
-        from: '"Sorteos" <sorteos@hayueloscc.com>', // El correo del remitente
+        from: '"EVENTOS HAYUELOS" <sorteos@hayueloscc.com>', // El correo del remitente
         to, // El correo del destinatario
         subject, // El asunto del correo
         text, // Texto plano
