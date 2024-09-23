@@ -33,7 +33,7 @@ export class AppService {
   private arrayTurnos = [];
 
   private evento: EventosEntity;
-  async getTurno(fechaQuery: Date) {
+  async getTurno(fechaQuery: Date,user:string) {
     try {
       const date = new Date();
       const fecha = new Date(fechaQuery);
@@ -64,7 +64,6 @@ export class AppService {
       let timeIntervals: any;
 
       let horaHoy = `${hora}:${minutos}`;
-      console.log(horaHoy);
       const { hour: hourWeb, minute: minuteWeb } = this.getHoursAndMinutes(horaHoy);
       const { hour: hourEvent, minute: minuteEvent } = this.getHoursAndMinutes(this.evento.horaInicial);
 
@@ -76,7 +75,7 @@ export class AppService {
         horaHoy = this.evento.horaInicial
       }
       if (this.evento) {
-        timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad);
+        timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user);
       } else {
         this.catchError('Evento no existe en los parametros', 'Evento no existe en los parametros');
       }
@@ -96,7 +95,7 @@ export class AppService {
     return this.arrayTurnos;
   }
 
-  async generateTimeIntervals(startTime: string, endTime: string, interval: number, fecha: number, capacidad: number) {
+  async generateTimeIntervals(startTime: string, endTime: string, interval: number, fecha: number, capacidad: number,user:string) {
     try {
       this.arrayTurnos = [];
       let [startHour, startMinute] = startTime.split(':').map(Number);
@@ -113,7 +112,8 @@ export class AppService {
       while (startHour < endHour || (startHour === endHour && startMinute < endMinute)) {
         const turno = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
         const asistente = asistentes.find(asistente => asistente.HORAASISTENCIA === turno);
-        const numeroAsistente = asistente ? asistente.PARTICIPANTES : 0;
+        const numeroAsistente = asistente ? asistente.PARTICIPANTES : 0;  
+        
         if (capacidad !== numeroAsistente){
           this.arrayTurnos.push(
             {
@@ -121,7 +121,15 @@ export class AppService {
               capacidad: capacidad - numeroAsistente,
               asistentes: numeroAsistente
             });
-        }                
+        }        
+        else if (user === '0'){
+          this.arrayTurnos.push(
+            {
+              turno: turno,
+              capacidad: capacidad - numeroAsistente,
+              asistentes: numeroAsistente
+            });
+        }
         startMinute += interval;
         if (startMinute >= 60) {
           startHour += Math.floor(startMinute / 60);
@@ -181,7 +189,6 @@ export class AppService {
       }
       else {
         const fechaHoraHoy = `${anio}${mes.toString().padStart(2, '0')}${dia.toString().padStart(2, '0')}${hora.toString().padStart(2, '0')}${minutos}`;
-        console.log(fechaHoraHoy);
         result = await this.asistenteRepository.createQueryBuilder()
           .where("CAST(CONCAT(DATEPART(YYYY, FECHAASISTENCIA), RIGHT('00' + CAST(DATEPART(MM, FECHAASISTENCIA) AS VARCHAR), 2), RIGHT('00' + CAST(DATEPART(DD, FECHAASISTENCIA) AS VARCHAR), 2), RIGHT('00' + CAST(DATEPART(HH, HORAASISTENCIA) AS VARCHAR), 2), RIGHT('00' + CAST(DATEPART(MI, HORAASISTENCIA) AS VARCHAR), 2)) AS BIGINT) >= :fechaHoraHoy", { fechaHoraHoy })
           .andWhere("IDCLIENTE = :idcliente", { idcliente: idCliente })
@@ -199,7 +206,6 @@ export class AppService {
 
   async postAsistentes(body: any) {
     try {
-      console.log(body);
       if (!body.nombreAsistente) {
         this.catchError("Debe digitar el nombre del asistente", "Debe digitar el nombre  del asistente")
       }
@@ -349,7 +355,6 @@ AND HORAASISTENCIA = @1
     try {
 
       const asiste: number = body.asiste;
-      console.log(Boolean(asiste))
       const result = await this.asistenteRepository.update(
         {
           idAsistentesEventos: id
@@ -547,7 +552,6 @@ AND HORAASISTENCIA = @1
   }
   async sendNotification(id:number,fechaQuery: Date){
     try{
-      console.log(id, fechaQuery);
       const fecha = new Date(fechaQuery);
       const anio = fecha.getFullYear();
       const mes = fecha.getMonth() + 1;
@@ -556,7 +560,6 @@ AND HORAASISTENCIA = @1
       const hora = fecha.getHours();
       const minutos = fecha.getMinutes().toString().padStart(2, '0'); // Asegura que tenga dos dígitos
       const horaHoy = `${hora}:${minutos}`;
-
       const consulta = await this.dataSource.query(
         `SELECT B.DOCUMENTO, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA, COUNT(*) AS TOTAL 
         FROM ASISTENTESEVENTOS AS A 
@@ -571,7 +574,6 @@ AND HORAASISTENCIA = @1
       // Verifica si hay resultados
       if (consulta.length > 0) {
         const primerRegistro = consulta[0]; // Solo tomamos el primer registro
-        console.log(primerRegistro);
 
         const fechaData = new Date(primerRegistro.FECHAASISTENCIA); // La fecha que deseas formatear
         const fechaFormateada = format(fechaData, 'dd/MM/yyyy');

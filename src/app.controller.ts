@@ -7,9 +7,10 @@ export class AppController {
 
   @Get()
     getEventos(
-        @Query('fecha') fecha:any
+        @Query('fecha') fecha:any,
+        @Query('user') user:string
     ){
-        return this.appService.getTurno(fecha);
+        return this.appService.getTurno(fecha,user);
     }
 
     @Get('/minuto')
