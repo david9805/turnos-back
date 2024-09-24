@@ -49,6 +49,6 @@ import { HttpModule } from '@nestjs/axios';
 export class AppModule {
   constructor(configService:ConfigService){
     console.log(process.env.DB_HOST,process.env.DB_USERNAME,process.env.DB_PASSWORD,process.env.TZ,process.env);
-    console.log(configService.get<string>('DB_HOST2'),configService.get<string>('DB_USERNAME2'),configService.get<string>('DB_PASSWORD2'));
+    console.log(configService.get<string>('DB_HOST'),configService.get<string>('DB_USERNAME'),configService.get<string>('DB_PASSWORD'));
   }
 }

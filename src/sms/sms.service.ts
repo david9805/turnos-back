@@ -29,6 +29,6 @@ export class SmsService {
                   }
               ]
         }
-        this.http.post();
+        // this.http.post();
     }
 }
