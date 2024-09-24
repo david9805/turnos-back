@@ -550,7 +550,7 @@ AND HORAASISTENCIA = @1
       this.catchError(error);
     }
   }
-  async sendNotification(id:number,fechaQuery: Date){
+  async sendNotification(id:number,fechaQuery: Date,typeComunication:string){
     try{
       const fecha = new Date(fechaQuery);
       const anio = fecha.getFullYear();

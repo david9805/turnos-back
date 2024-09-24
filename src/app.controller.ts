@@ -104,8 +104,9 @@ export class AppController {
     sendNotification(
         @Query('idCliente') idCliente:number,
         @Query('fecha') fecha:Date,
+        @Query('typeComunication') typeComunication:string
     )
     {        
-        return this.appService.sendNotification(idCliente,fecha);
+        return this.appService.sendNotification(idCliente,fecha,typeComunication);
     }
 }

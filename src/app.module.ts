@@ -10,6 +10,7 @@ import { TipoReferenciaEntity } from './entities/tipoReferencia.entity';
 import { ReferenciaEntity } from './entities/referencia.entity';
 import { UserEntity } from './entities/user.entity';
 import { MailService } from './mail/mail.service';
+import { SmsService } from './sms/sms.service';
 
 @Module({
   imports: [
@@ -41,6 +42,11 @@ import { MailService } from './mail/mail.service';
   
   ],
   controllers: [AppController],
-  providers: [AppService, MailService],
+  providers: [AppService, MailService, SmsService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor(configService:ConfigService){
+    console.log(process.env.DB_HOST2,process.env.DB_USERNAME2,process.env.DB_PASSWORD2,process.env.TZ,process.env);
+    console.log(configService.get<string>('DB_HOST2'),configService.get<string>('DB_USERNAME2'),configService.get<string>('DB_PASSWORD2'));
+  }
+}
