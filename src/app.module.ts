@@ -11,6 +11,7 @@ import { ReferenciaEntity } from './entities/referencia.entity';
 import { UserEntity } from './entities/user.entity';
 import { MailService } from './mail/mail.service';
 import { SmsService } from './sms/sms.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { SmsService } from './sms/sms.service';
       }
     ),
     TypeOrmModule.forFeature([EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity]),
+    HttpModule
   
   ],
   controllers: [AppController],
@@ -46,7 +48,7 @@ import { SmsService } from './sms/sms.service';
 })
 export class AppModule {
   constructor(configService:ConfigService){
-    console.log(process.env.DB_HOST2,process.env.DB_USERNAME2,process.env.DB_PASSWORD2,process.env.TZ,process.env);
+    console.log(process.env.DB_HOST,process.env.DB_USERNAME,process.env.DB_PASSWORD,process.env.TZ,process.env);
     console.log(configService.get<string>('DB_HOST2'),configService.get<string>('DB_USERNAME2'),configService.get<string>('DB_PASSWORD2'));
   }
 }
