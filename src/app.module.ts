@@ -23,10 +23,10 @@ import { HttpModule } from '@nestjs/axios';
         imports:[ConfigModule],
         useFactory: async (configService:ConfigService)=>({
           type:'mssql',
-          host: 'www.comprasinteligentes.co',
-          username:'sa',
-          password:'mf1feylF',
-          database:'CRMHAYUELOS',
+          host: configService.get<string>('DB_HOST'),
+          username:configService.get<string>('DB_USERNAME'),
+          password:configService.get<string>('DB_PASSWORD'),
+          database:configService.get<string>('DB_DATABASE'),
           entities:[EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity],
           options:{
             encrypt:true,
@@ -47,8 +47,4 @@ import { HttpModule } from '@nestjs/axios';
   providers: [AppService, MailService, SmsService],
 })
 export class AppModule {
-  constructor(configService:ConfigService){
-    console.log(process.env.DB_HOST,process.env.DB_USERNAME,process.env.DB_PASSWORD,process.env.TZ,process.env);
-    console.log(configService.get<string>('DB_HOST'),configService.get<string>('DB_USERNAME'),configService.get<string>('DB_PASSWORD'));
-  }
 }
