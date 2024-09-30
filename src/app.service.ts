@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, Body } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventosEntity } from './entities/eventos.entity';
 import { DataSource, Repository } from 'typeorm';
@@ -9,6 +9,13 @@ import { TipoReferenciaEntity } from './entities/tipoReferencia.entity';
 import { UserEntity } from './entities/user.entity';
 import { MailService } from './mail/mail.service';
 import { format } from 'date-fns/format';
+import { SmsService } from './sms/sms.service';
+import { isEmpty } from 'rxjs';
+import { BloqueoTurnosEntity } from './entities/bloqueoTurnos';
+import { compareAsc, parseJSON } from 'date-fns';
+import { WebSocketServer } from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { IsEmpty } from 'class-validator';
 
 @Injectable()
 export class AppService {
@@ -24,19 +31,23 @@ export class AppService {
     private readonly tipoReferenciaRepository: Repository<TipoReferenciaEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(BloqueoTurnosEntity)
+    private readonly bloqueoTurnosRepository: Repository<BloqueoTurnosEntity>,
     private dataSource: DataSource,
-    private emailService:MailService
+    private emailService:MailService,
+    private smsService:SmsService
   ) {
 
   }
 
   private arrayTurnos = [];
-
+  @WebSocketServer() server: Server;
   private evento: EventosEntity;
   async getTurno(fechaQuery: Date,user:string) {
-    try {
+    try {      
       const date = new Date();
-      const fecha = new Date(fechaQuery);
+      const fechaNueva = format(fechaQuery, 'yyyy-MM-dd HH:mm:ss'); 
+      const fecha = new Date(fechaNueva);      
       const anio = fecha.getFullYear();
       const mes = fecha.getMonth() + 1;
       const dia = fecha.getDate();
@@ -70,12 +81,36 @@ export class AppService {
       if (hourWeb < hourEvent || (hourWeb === hourEvent && minuteWeb < minuteEvent)) {
         horaHoy = this.evento.horaInicial
       }
-
+      const bloqueoTurnos = await this.bloqueoTurnosRepository.createQueryBuilder("BLOQUEARTURNOS")
+      .where(`DATEPART(YYYY,FECHABLOQUEO)*10000 + DATEPART(MM,FECHABLOQUEO)*100 + DATEPART(DD,FECHABLOQUEO) = ${fechaHoy}`)
+      .getOne();
+      let turnosBloqueados = [];
+      if (user === '0'){
+        horaHoy = this.evento.horaInicial;
+        turnosBloqueados = [];
+      }      
       if (fechaHoy !== fechaHoyCompare) {
         horaHoy = this.evento.horaInicial
       }
       if (this.evento) {
-        timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user);
+        if (user === '0'){
+          timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados);
+        }
+        else{
+          if (bloqueoTurnos){
+            turnosBloqueados = JSON.parse(bloqueoTurnos.turnos);
+            if (compareAsc(format(bloqueoTurnos.fechaBloqueo, 'yyyy-MM-dd'),format(fecha, 'yyyy-MM-dd')) === 0 && bloqueoTurnos.bloqueoPorHoras)
+            {
+              timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados)                         
+            } 
+            else{
+              timeIntervals = [];
+            }             
+          }
+          else{
+            timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,[]);
+          }          
+        }        
       } else {
         this.catchError('Evento no existe en los parametros', 'Evento no existe en los parametros');
       }
@@ -95,7 +130,7 @@ export class AppService {
     return this.arrayTurnos;
   }
 
-  async generateTimeIntervals(startTime: string, endTime: string, interval: number, fecha: number, capacidad: number,user:string) {
+  async generateTimeIntervals(startTime: string, endTime: string, interval: number, fecha: number, capacidad: number,user:string,turnosBloqueado:any) {
     try {
       this.arrayTurnos = [];
       let [startHour, startMinute] = startTime.split(':').map(Number);
@@ -135,7 +170,16 @@ export class AppService {
           startHour += Math.floor(startMinute / 60);
           startMinute = startMinute % 60;
         }
-      }
+      }      
+      turnosBloqueado.forEach(element => {
+        // Encuentra el índice del objeto cuyo 'id' coincida con el 'value'
+        const index = this.arrayTurnos.findIndex((item: any) => item.turno === element.hora);
+
+        // Si el objeto con el 'id' existe en el array, lo elimina
+        if (index !== -1) {
+          this.arrayTurnos.splice(index, 1); // Elimina 1 objeto en la posición 'index'
+        }       
+      });
       return this.arrayTurnos;
     }
     catch (error) {
@@ -561,39 +605,240 @@ AND HORAASISTENCIA = @1
       const minutos = fecha.getMinutes().toString().padStart(2, '0'); // Asegura que tenga dos dígitos
       const horaHoy = `${hora}:${minutos}`;
       const consulta = await this.dataSource.query(
-        `SELECT B.DOCUMENTO, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA, COUNT(*) AS TOTAL 
+        `SELECT B.DOCUMENTO, B.TELEFONO2,B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA, COUNT(*) AS TOTAL 
         FROM ASISTENTESEVENTOS AS A 
         INNER JOIN CLIENTE AS B ON A.IDCLIENTE = B.IDCLIENTE
         WHERE B.IDCLIENTE = @0
         AND DATEPART(YYYY, A.FECHAASISTENCIA) * 10000 + DATEPART(MM, A.FECHAASISTENCIA) * 100 + DATEPART(DD, A.FECHAASISTENCIA) = @1
         AND A.HORAASISTENCIA = @2
-        GROUP BY B.DOCUMENTO, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA`,
+        GROUP BY B.DOCUMENTO,B.TELEFONO2, B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA`,
         [id, fechaHoy, horaHoy]
       );
 
       // Verifica si hay resultados
       if (consulta.length > 0) {
-        const primerRegistro = consulta[0]; // Solo tomamos el primer registro
-
+        const primerRegistro = consulta[0];
         const fechaData = new Date(primerRegistro.FECHAASISTENCIA); // La fecha que deseas formatear
         const fechaFormateada = format(fechaData, 'dd/MM/yyyy');
-        
-        const html = `
-          <p>Gracias por registrar tu turno en nuestra estación.</p>
-          <ul>
-            <li>Documento: ${primerRegistro.DOCUMENTO}</li>
-            <li>Fecha del Turno: ${fechaFormateada}</li>
-            <li>Hora: ${primerRegistro.HORAASISTENCIA}</li>
-            <li>Número de Niños Registrados: ${primerRegistro.TOTAL}</li>
-          </ul>
-          <p>Recuerda llegar 10 minutos antes de tu turno, de lo contrario tu turno será reasignado</p>
-          <a href="https://www.hayueloscc.com/politica-de-tratamiento-de-datos/">https://www.hayueloscc.com/politica-de-tratamiento-de-datos/</a>
-        `;
+        if (typeComunication === 'correo'){
+           // Solo tomamos el primer registro
+          
+          
+          const html = `
+            <p>Gracias por registrar tu turno en nuestra estación.</p>
+            <ul>
+              <li>Documento: ${primerRegistro.DOCUMENTO}</li>
+              <li>Fecha del Turno: ${fechaFormateada}</li>
+              <li>Hora: ${primerRegistro.HORAASISTENCIA}</li>
+              <li>Número de Niños Registrados: ${primerRegistro.TOTAL}</li>
+            </ul>
+            <p>Recuerda llegar 10 minutos antes de tu turno, de lo contrario tu turno será reasignado</p>
+            <a href="https://www.hayueloscc.com/politica-de-tratamiento-de-datos/">https://www.hayueloscc.com/politica-de-tratamiento-de-datos/</a>
+          `;
 
-        this.emailService.sendMail(primerRegistro.EMAIL, "Notificación turno", "Prueba", html);
-        return primerRegistro; // Devuelve solo el primer registro
+          await this.emailService.sendMail(primerRegistro.EMAIL, "Notificación turno", "Prueba", html);
+        }
+        else if (typeComunication === 'celular'){
+          const message = 
+          `
+            Turno registrado con éxito. Documento:${primerRegistro.DOCUMENTO}. Día:${fechaFormateada},Hora:${primerRegistro.HORAASISTENCIA}, Niños  registrados:${primerRegistro.TOTAL} . Preséntate 10 minutos antes o tu turno será reasignado. 
+          `;
+          await this.smsService.sendSms(primerRegistro.TELEFONO2,message);
+          return primerRegistro;
+        }                
+         // Devuelve solo el primer registro
+      }
+      else{
+        return []
       }
 
+    }
+    catch(error){
+      this.catchError(error);
+    }
+  }
+
+  async reAssing(documento:string){
+    try{
+      const fecha = new Date();
+      const anio = fecha.getFullYear();
+      const mes = fecha.getMonth() + 1;
+      const dia = fecha.getDate();
+      const fechaNumber = anio * 10000 + mes * 100 +  dia;
+      const consulta = await this.dataSource.query(
+        `SELECT B.NOMBRE1,B.APELLIDO1,B.DOCUMENTO, B.TELEFONO2,B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA,B.IDCLIENTE,COUNT(IDASISTENTESEVENTOS) AS TOTAL
+        FROM ASISTENTESEVENTOS AS A 
+        INNER JOIN CLIENTE AS B ON A.IDCLIENTE = B.IDCLIENTE 
+        WHERE B.DOCUMENTO = @0
+        AND 
+        (
+          (CAST(A.FECHAASISTENCIA AS DATE) = CAST(GETDATE() AS DATE) AND 
+          CAST(CONVERT(DATE, GETDATE()) AS DATETIME) + CAST(A.HORAASISTENCIA AS DATETIME) > GETDATE())
+          OR 
+          (CAST(FECHAASISTENCIA AS DATE) > CAST(GETDATE() AS DATE))
+        )
+        GROUP BY B.NOMBRE1,B.APELLIDO1,B.DOCUMENTO, B.TELEFONO2,B.EMAIL, A.FECHAASISTENCIA, A.HORAASISTENCIA,B.IDCLIENTE
+        `,
+        [documento,fechaNumber]
+      );
+      return consulta;      
+    }
+    catch(error){
+      this.catchError(error);
+    }
+  }
+
+  async getAllHours(fecha:Date){
+    try{
+
+      const fechaNueva = format(fecha, 'yyyy-MM-dd HH:mm:ss'); 
+      const consulta = await this.dataSource.query(
+      `
+        WITH CTE_Horas AS (            
+            SELECT CAST(HORAINICIAL AS DATETIME) AS Hora, HORAINICIAL, HORAFINAL, PERIODICIDAD
+            FROM EVENTOS
+            WHERE DATEPART(YYYY, GETDATE()) * 10000 + DATEPART(MM, GETDATE()) * 100 + DATEPART(DD, GETDATE()) 
+                  BETWEEN DATEPART(YYYY, FECHAINICIAL) * 10000 + DATEPART(MM, FECHAINICIAL) * 100 + DATEPART(DD, FECHAINICIAL) 
+                      AND DATEPART(YYYY, FECHAFINAL) * 10000 + DATEPART(MM, FECHAFINAL) * 100 + DATEPART(DD, FECHAFINAL)
+            UNION ALL
+            SELECT DATEADD(MINUTE, PERIODICIDAD, Hora) AS Hora,
+                  HORAINICIAL, HORAFINAL, PERIODICIDAD
+            FROM CTE_Horas
+            WHERE DATEADD(MINUTE, PERIODICIDAD, Hora) < CAST(HORAFINAL AS DATETIME)
+        )
+        -- Seleccionar el resultado
+        SELECT FORMAT(Hora, 'HH:mm') as hora
+        FROM CTE_Horas
+        WHERE 
+            (CAST( '${fechaNueva}' AS DATE) = CAST(GETDATE() AS DATE) AND 
+            CAST(CONVERT(DATE, GETDATE()) AS DATETIME) + CAST(Hora AS DATETIME) > GETDATE())
+            OR 
+            (CAST( '${fechaNueva}' AS DATE) <> CAST(GETDATE() AS DATE))
+        OPTION (MAXRECURSION 0);
+
+      `
+      )
+      return consulta;
+    }
+    catch(error){
+      this.catchError(error)
+    }
+  }
+
+  async putTurnos(data:any,id:number){
+    try{
+      if (!data.turno){
+        this.catchError("Debe seleccionar la hora", "Debe seleccionar la hora");
+      }
+      if (!data.fecha){
+        this.catchError("Debe seleccionar la fecha", "Debe seleccionar la fecha");
+      }
+
+      const fechaNueva = format(data.fecha, 'yyyy-MM-dd HH:mm:ss');       
+      const fechaAntigua = new Date(data.fechaAntigua); 
+      const anio = fechaAntigua.getFullYear();
+      const mes = fechaAntigua.getMonth() + 1;
+      const dia = fechaAntigua.getDate();
+      const fechaNumber = anio * 10000 + mes * 100 + dia;
+      const consulta = await this.dataSource.query(
+        `
+          SELECT COUNT(*) AS TOTAL FROM ASISTENTESEVENTOS
+          WHERE DATEPART(YYYY, FECHAASISTENCIA) * 10000 + DATEPART(MM, FECHAASISTENCIA) * 100 + DATEPART(DD, FECHAASISTENCIA) = ${fechaNumber}
+          AND HORAASISTENCIA = '${data.turno}'
+        `
+      );
+      const total = consulta[0].TOTAL;
+      const asistentes = data.asistentes + total;
+      let capacidad=0;      
+      if (!this.evento){
+       const evento = await this.dataSource.query(
+        `
+          SELECT TOP 1 * FROM EVENTOS
+          WHERE ${fechaNumber} BETWEEN DATEPART(YYYY,FECHAINICIAL)*10000 + DATEPART(MM,FECHAINICIAL)*100 + DATEPART(DD,FECHAINICIAL) AND  DATEPART(YYYY,FECHAFINAL)*10000 + DATEPART(MM,FECHAFINAL)*100 + DATEPART(DD,FECHAFINAL)
+        `
+       )
+       capacidad = evento[0].CAPACIDAD;
+      }
+      else{
+        capacidad = this.evento.capacidad;
+      }
+
+      if ( (asistentes + total) < capacidad){
+        const update = this.dataSource.query(
+          `
+            UPDATE ASISTENTESEVENTOS SET FECHAASISTENCIA = '${fechaNueva}' , HORAASISTENCIA = '${data.turno}' WHERE IDCLIENTE = ${id}  
+            AND DATEPART(YYYY, FECHAASISTENCIA) * 10000 + DATEPART(MM, FECHAASISTENCIA) * 100 + DATEPART(DD, FECHAASISTENCIA) = ${fechaNumber}
+            AND HORAASISTENCIA = '${data.turnoAntiguo}'
+          `
+        );
+        return update;
+      }            
+      else{
+        this.catchError("Para el turno seleccionado ya no se encuentran cupos disponibles", "Para el turno seleccionado ya no se encuentran cupos disponibles");
+      }
+      
+    }
+    catch(error){
+      this.catchError(error);
+    }
+  }
+  async bloquearTurno(data:any){
+    try{
+      if (!data.fechaBloqueo){
+        this.catchError("Debe seleccionar la fecha", "Debe seleccionar la fecha");
+      }
+      const result = await this.bloqueoTurnosRepository.save({
+        fechaBloqueo:data.fechaBloqueo,
+        bloqueoPorHoras:data.bloqueoPorHoras,
+        turnos:JSON.stringify(data.turnos)   
+      });
+
+      return result;
+    }
+    catch(error){
+      this.catchError(error)
+    }
+  }
+
+  async getTurnosBloqueados(){
+    try{
+      const result = await this.bloqueoTurnosRepository.find();
+      return result;      
+    }
+    catch(error){
+      this.catchError(error);
+    }
+  }
+  async putBloqueosTurnos(id:number,data:any){
+    try{
+      if (!data.fechaBloqueo){
+        this.catchError("Debe seleccionar la fecha", "Debe seleccionar la fecha");
+      }
+
+      const result = await this.bloqueoTurnosRepository.update(
+        {
+          idBloquearTurnos:id
+        },
+        {
+          fechaBloqueo:data.fechaBloqueo,
+          bloqueoPorHoras:data.bloqueoPorHoras,
+          turnos:JSON.stringify(data.turnos)  
+        }
+      );
+
+      return result;
+    }
+    catch(error){
+      this.catchError(error);
+    }
+  }
+
+  async deleteBloqueosTurnos(id:number){
+    try{
+      const result = await this.bloqueoTurnosRepository.delete({
+        idBloquearTurnos:id
+      })
+      return result;
     }
     catch(error){
       this.catchError(error);

@@ -12,6 +12,7 @@ import { UserEntity } from './entities/user.entity';
 import { MailService } from './mail/mail.service';
 import { SmsService } from './sms/sms.service';
 import { HttpModule } from '@nestjs/axios';
+import { BloqueoTurnosEntity } from './entities/bloqueoTurnos';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { HttpModule } from '@nestjs/axios';
           username:configService.get<string>('DB_USERNAME'),
           password:configService.get<string>('DB_PASSWORD'),
           database:configService.get<string>('DB_DATABASE'),
-          entities:[EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity],
+          entities:[EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity,BloqueoTurnosEntity],
           options:{
             encrypt:true,
             trustServerCertificate:true
@@ -39,7 +40,7 @@ import { HttpModule } from '@nestjs/axios';
                   
       }
     ),
-    TypeOrmModule.forFeature([EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity]),
+    TypeOrmModule.forFeature([EventosEntity,ClienteEntity,AsistentesEntity,TipoReferenciaEntity,ReferenciaEntity,UserEntity,BloqueoTurnosEntity]),
     HttpModule
   
   ],

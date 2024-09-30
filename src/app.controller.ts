@@ -109,4 +109,52 @@ export class AppController {
     {        
         return this.appService.sendNotification(idCliente,fecha,typeComunication);
     }
+
+    @Get('/reassing/:documento')
+    reAssing(
+        @Param('documento') documento:string,
+    ){
+        return this.appService.reAssing(documento);
+    }
+
+    @Get('/allhours')
+    allHours(
+        @Query('fecha') fecha:Date
+    ){
+        return this.appService.getAllHours(fecha);
+    }
+
+    @Put('/:id')
+    putTurnos(
+        @Param('id') id:number,
+        @Body() body:any
+    ){
+        return this.appService.putTurnos(body,id);
+    }
+    @Post('/blockTurn')
+    blockTurn(
+        @Body() body:any
+    ){
+        return this.appService.bloquearTurno(body);
+    }
+    @Get('/blockTurn')
+    getTurn(
+    ){
+        return this.appService.getTurnosBloqueados();
+    }
+    @Put('/blockTurn/:id')
+    putBlockTurn(
+        @Param('id') id:number, 
+        @Body() body:any
+    ){
+        return this.appService.putBloqueosTurnos(id,body);
+    }
+    @Delete('/blockTurn/:id')
+    deleteBlockTurn(
+        @Param('id') id:number, 
+    ){
+        return this.appService.deleteBloqueosTurnos(id);
+    }
+
+
 }
