@@ -93,7 +93,6 @@ export class AppService {
         horaHoy = this.evento.horaInicial
       }   
       const fechaPrueba = new Date();
-      fechaPrueba.setFullYear(2024,9,1);
       if (this.evento) {
         if (user === '0'){
           timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados);
