@@ -84,32 +84,39 @@ export class AppService {
       const bloqueoTurnos = await this.bloqueoTurnosRepository.createQueryBuilder("BLOQUEARTURNOS")
       .where(`DATEPART(YYYY,FECHABLOQUEO)*10000 + DATEPART(MM,FECHABLOQUEO)*100 + DATEPART(DD,FECHABLOQUEO) = ${fechaHoy}`)
       .getOne();
-      let turnosBloqueados = [];
+      let turnosBloqueados = [];      
       if (user === '0'){
         horaHoy = this.evento.horaInicial;
         turnosBloqueados = [];
       }      
       if (fechaHoy !== fechaHoyCompare) {
         horaHoy = this.evento.horaInicial
-      }
+      }   
+      const fechaPrueba = new Date();
+      fechaPrueba.setFullYear(2024,9,1);
       if (this.evento) {
         if (user === '0'){
           timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados);
-        }
+        }        
         else{
-          if (bloqueoTurnos){
-            turnosBloqueados = JSON.parse(bloqueoTurnos.turnos);
-            if (compareAsc(format(bloqueoTurnos.fechaBloqueo, 'yyyy-MM-dd'),format(fecha, 'yyyy-MM-dd')) === 0 && bloqueoTurnos.bloqueoPorHoras)
-            {
-              timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados)                         
-            } 
+          if (compareAsc(format(fecha, 'yyyy-MM-dd'),format(fechaPrueba, 'yyyy-MM-dd')) === 0) {      
+            if (bloqueoTurnos){
+              turnosBloqueados = JSON.parse(bloqueoTurnos.turnos);
+              if (compareAsc(format(bloqueoTurnos.fechaBloqueo, 'yyyy-MM-dd'),format(fecha, 'yyyy-MM-dd')) === 0 && bloqueoTurnos.bloqueoPorHoras)
+              {
+                timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,turnosBloqueados)                         
+              } 
+              else{
+                timeIntervals = [];
+              }             
+            }
             else{
-              timeIntervals = [];
-            }             
+              timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,[]);
+            } 
           }
-          else{
-            timeIntervals = await this.generateTimeIntervals(horaHoy, this.evento.horaFinal, this.evento.periodicidad, fechaHoy, this.evento.capacidad,user,[]);
-          }          
+          else {
+            timeIntervals = [];
+          }                   
         }        
       } else {
         this.catchError('Evento no existe en los parametros', 'Evento no existe en los parametros');
