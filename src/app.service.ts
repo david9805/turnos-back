@@ -71,7 +71,7 @@ export class AppService {
 
       const hora = fecha.getHours();
 
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       let timeIntervals: any;
 
       let horaHoy = `${hora}:${minutos}`;
@@ -202,8 +202,9 @@ export class AppService {
       const dia = fecha.getDate();
       const fechaHoy = anio * 10000 + mes * 100 + dia;
       const hora = fecha.getHours();
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       const horaHoy = `${hora}:${minutos}`;
+      console.log(fechaHoy,minutos)
       const result = await this.asistenteRepository.createQueryBuilder("asistente")
         .leftJoinAndSelect("asistente.cliente", "cliente")
         .where(" DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA)=:fecha", { fecha: fechaHoy })
@@ -226,7 +227,7 @@ export class AppService {
       const dia = fecha.getDate();
       const fechaHoy = anio * 10000 + mes * 100 + dia;
       const hora = fecha.getHours();
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       const horaHoy = `${hora}:${minutos}`;
 
       let result: any
@@ -274,7 +275,7 @@ export class AppService {
       const dia = fecha.getDate();
       const fechaHoy = anio * 10000 + mes * 100 + dia;
       const hora = fecha.getHours();
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       const horaHoy = `${hora}:${minutos}`;
       const consulta = await this.dataSource.query(
         `SELECT COUNT(DISTINCT FECHAASISTENCIA) AS PARTICIPACIONES FROM ASISTENTESEVENTOS
@@ -352,7 +353,7 @@ export class AppService {
       const dia = fecha.getDate();
       const fechaHoy = anio * 10000 + mes * 100 + dia;
       const hora = fecha.getHours();
-      const minutos = fecha.getMinutes().toString() === '0' ? fecha.getMinutes().toString() + '0' : fecha.getMinutes().toString();
+      const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       const horaHoy = `${hora}:${minutos}`;
 
       const consulta = await this.dataSource.query(
