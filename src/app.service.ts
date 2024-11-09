@@ -204,7 +204,6 @@ export class AppService {
       const hora = fecha.getHours();
       const minutos = fecha.getMinutes().toString().length <=1 ? '0' + fecha.getMinutes().toString() : fecha.getMinutes().toString();
       const horaHoy = `${hora}:${minutos}`;
-      console.log(fechaHoy,minutos)
       const result = await this.asistenteRepository.createQueryBuilder("asistente")
         .leftJoinAndSelect("asistente.cliente", "cliente")
         .where(" DATEPART(YYYY,FECHAASISTENCIA) * 10000 + DATEPART(MM,FECHAASISTENCIA) * 100 + DATEPART(DD,FECHAASISTENCIA)=:fecha", { fecha: fechaHoy })
